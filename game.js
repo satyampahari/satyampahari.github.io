@@ -160,6 +160,7 @@ function hitTentacle() {
 function updateCaesar(deltaScale) {
   let dx = 0;
   let dy = 0;
+  let pointerDistance = 0;
 
   if (keys.has("ArrowLeft") || keys.has("KeyA")) dx -= 1;
   if (keys.has("ArrowRight") || keys.has("KeyD")) dx += 1;
@@ -167,15 +168,24 @@ function updateCaesar(deltaScale) {
   if (keys.has("ArrowDown") || keys.has("KeyS")) dy += 1;
 
   if (pointer.active) {
-    dx += pointer.x - caesar.x;
-    dy += pointer.y - caesar.y;
+    const pointerDx = pointer.x - caesar.x;
+    const pointerDy = pointer.y - caesar.y;
+    pointerDistance = Math.hypot(pointerDx, pointerDy);
+    if (pointerDistance > 8) {
+      dx += pointerDx;
+      dy += pointerDy;
+    }
   }
 
-  const length = Math.hypot(dx, dy) || 1;
+  const length = Math.hypot(dx, dy);
   const boosting = caesar.boost && caesar.boostFuel > 0;
   const moveSpeed = caesar.speed * (boosting ? 1.75 : 1);
-  caesar.x += (dx / length) * moveSpeed * deltaScale;
-  caesar.y += (dy / length) * moveSpeed * deltaScale;
+  if (length > 0) {
+    const maxStep = moveSpeed * deltaScale;
+    const step = pointer.active && pointerDistance > 0 ? Math.min(maxStep, pointerDistance) : maxStep;
+    caesar.x += (dx / length) * step;
+    caesar.y += (dy / length) * step;
+  }
 
   if (boosting) {
     caesar.boostFuel -= 1.1 * deltaScale;
