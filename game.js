@@ -17,6 +17,7 @@ let gameOver = false;
 let score = 0;
 let frame = 0;
 let lastTime = 0;
+let animationId = 0;
 let particles = [];
 let rocks = [];
 
@@ -24,7 +25,7 @@ const caesar = {
   x: 1010,
   y: 360,
   radius: 24,
-  speed: 5.1,
+  speed: 6.7,
   boost: false,
   boostFuel: 100,
 };
@@ -40,7 +41,26 @@ const octopus = {
 
 bestEl.textContent = best;
 
+function resizeCanvas() {
+  const previousWidth = canvas.width;
+  const previousHeight = canvas.height;
+  canvas.width = Math.max(720, Math.floor(window.innerWidth));
+  canvas.height = Math.max(480, Math.floor(window.innerHeight));
+
+  if (previousWidth && previousHeight) {
+    caesar.x = clamp(caesar.x * (canvas.width / previousWidth), caesar.radius, canvas.width - caesar.radius);
+    caesar.y = clamp(caesar.y * (canvas.height / previousHeight), caesar.radius, canvas.height - caesar.radius);
+    octopus.x = clamp(octopus.x * (canvas.width / previousWidth), octopus.radius, canvas.width - octopus.radius);
+    octopus.y = clamp(octopus.y * (canvas.height / previousHeight), octopus.radius, canvas.height - octopus.radius);
+  }
+}
+
 function resetGame() {
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = 0;
+  }
+  resizeCanvas();
   running = true;
   gameOver = false;
   score = 0;
@@ -70,7 +90,7 @@ function resetGame() {
   }));
   startButton.textContent = "Start";
   startButton.classList.add("hidden");
-  requestAnimationFrame(loop);
+  animationId = requestAnimationFrame(loop);
 }
 
 function clamp(value, min, max) {
@@ -81,7 +101,63 @@ function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function updateCaesar() {
+function pointToSegmentDistance(point, start, end) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy || 1;
+  const t = clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared, 0, 1);
+  const closest = {
+    x: start.x + dx * t,
+    y: start.y + dy * t,
+  };
+  return distance(point, closest);
+}
+
+function getTentacles() {
+  return Array.from({ length: 8 }, (_, index) => {
+    const angle = -0.38 + (Math.PI * 1.76 * index) / 7;
+    const wave = Math.sin(octopus.wobble + index * 0.75) * 18;
+    const start = {
+      x: octopus.x + Math.cos(angle) * octopus.radius * 0.42,
+      y: octopus.y + 14 + Math.sin(angle) * octopus.radius * 0.26,
+    };
+    const control = {
+      x: octopus.x + Math.cos(angle) * (octopus.radius * 0.82) + wave,
+      y: octopus.y + octopus.radius * 0.9 + Math.cos(index) * 16,
+    };
+    const end = {
+      x: octopus.x + Math.cos(angle) * (octopus.radius * 1.35) + wave * 0.55,
+      y: octopus.y + octopus.radius * 1.52 + Math.sin(octopus.wobble + index) * 11,
+    };
+    return { start, control, end, index };
+  });
+}
+
+function quadraticPoint(start, control, end, t) {
+  const oneMinusT = 1 - t;
+  return {
+    x: oneMinusT * oneMinusT * start.x + 2 * oneMinusT * t * control.x + t * t * end.x,
+    y: oneMinusT * oneMinusT * start.y + 2 * oneMinusT * t * control.y + t * t * end.y,
+  };
+}
+
+function hitTentacle() {
+  const tentacleThickness = Math.max(11, octopus.radius * 0.2);
+  const hitRadius = caesar.radius + tentacleThickness * 0.44;
+  return getTentacles().some((tentacle) => {
+    let previous = tentacle.start;
+    for (let step = 1; step <= 12; step += 1) {
+      const point = quadraticPoint(tentacle.start, tentacle.control, tentacle.end, step / 12);
+      if (pointToSegmentDistance(caesar, previous, point) <= hitRadius) {
+        return true;
+      }
+      previous = point;
+    }
+    return false;
+  });
+}
+
+function updateCaesar(deltaScale) {
   let dx = 0;
   let dy = 0;
 
@@ -97,21 +173,21 @@ function updateCaesar() {
 
   const length = Math.hypot(dx, dy) || 1;
   const boosting = caesar.boost && caesar.boostFuel > 0;
-  const moveSpeed = caesar.speed * (boosting ? 1.65 : 1);
-  caesar.x += (dx / length) * moveSpeed;
-  caesar.y += (dy / length) * moveSpeed;
+  const moveSpeed = caesar.speed * (boosting ? 1.75 : 1);
+  caesar.x += (dx / length) * moveSpeed * deltaScale;
+  caesar.y += (dy / length) * moveSpeed * deltaScale;
 
   if (boosting) {
-    caesar.boostFuel -= 1.1;
+    caesar.boostFuel -= 1.1 * deltaScale;
   } else {
-    caesar.boostFuel = Math.min(100, caesar.boostFuel + 0.28);
+    caesar.boostFuel = Math.min(100, caesar.boostFuel + 0.28 * deltaScale);
   }
 
   caesar.x = clamp(caesar.x, caesar.radius, canvas.width - caesar.radius);
   caesar.y = clamp(caesar.y, caesar.radius, canvas.height - caesar.radius);
 }
 
-function updateOctopus() {
+function updateOctopus(deltaScale) {
   const dx = caesar.x - octopus.x;
   const dy = caesar.y - octopus.y;
   const length = Math.hypot(dx, dy) || 1;
@@ -119,21 +195,21 @@ function updateOctopus() {
   octopus.targetRadius = Math.min(98, 46 + growthSteps * 7);
   octopus.radius += (octopus.targetRadius - octopus.radius) * 0.025;
   octopus.speed = Math.min(7.1, 1.75 + score / 1400);
-  octopus.x += (dx / length) * octopus.speed;
-  octopus.y += (dy / length) * octopus.speed;
-  octopus.wobble += 0.12 + octopus.speed * 0.012;
+  octopus.x += (dx / length) * octopus.speed * deltaScale;
+  octopus.y += (dy / length) * octopus.speed * deltaScale;
+  octopus.wobble += (0.12 + octopus.speed * 0.012) * deltaScale;
 }
 
-function update() {
-  frame += 1;
-  score += 1;
+function update(deltaScale) {
+  frame += deltaScale;
+  score += deltaScale;
   scoreEl.textContent = Math.floor(score / 6);
-  updateCaesar();
-  updateOctopus();
+  updateCaesar(deltaScale);
+  updateOctopus(deltaScale);
 
   particles.forEach((particle) => {
-    particle.x -= particle.drift * particle.depth;
-    particle.y += Math.sin((frame + particle.x) * 0.015) * 0.18 - 0.12 * particle.depth;
+    particle.x -= particle.drift * particle.depth * deltaScale;
+    particle.y += (Math.sin((frame + particle.x) * 0.015) * 0.18 - 0.12 * particle.depth) * deltaScale;
     if (particle.x < -10) {
       particle.x = canvas.width + 10;
       particle.y = Math.random() * canvas.height;
@@ -143,7 +219,7 @@ function update() {
     }
   });
 
-  if (distance(caesar, octopus) < caesar.radius + octopus.radius - 8) {
+  if (distance(caesar, octopus) < caesar.radius + octopus.radius - 8 || hitTentacle()) {
     endGame();
   }
 }
@@ -151,6 +227,10 @@ function update() {
 function endGame() {
   running = false;
   gameOver = true;
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = 0;
+  }
   const finalScore = Math.floor(score / 6);
   if (finalScore > best) {
     best = finalScore;
@@ -223,30 +303,43 @@ function drawOctopus() {
   ctx.strokeStyle = "#8f2344";
   ctx.lineWidth = Math.max(11, octopus.radius * 0.2);
   ctx.lineCap = "round";
-  for (let i = 0; i < 8; i += 1) {
-    const angle = -0.38 + (Math.PI * 1.76 * i) / 7;
-    const wave = Math.sin(octopus.wobble + i * 0.75) * 18;
-    const startX = Math.cos(angle) * octopus.radius * 0.42;
-    const startY = 14 + Math.sin(angle) * octopus.radius * 0.26;
-    const midX = Math.cos(angle) * (octopus.radius * 0.82) + wave;
-    const midY = octopus.radius * 0.9 + Math.cos(i) * 16;
-    const endX = Math.cos(angle) * (octopus.radius * 1.35) + wave * 0.55;
-    const endY = octopus.radius * 1.52 + Math.sin(octopus.wobble + i) * 11;
+  getTentacles().forEach((tentacle) => {
+    const startX = tentacle.start.x - octopus.x;
+    const startY = tentacle.start.y - octopus.y;
+    const midX = tentacle.control.x - octopus.x;
+    const midY = tentacle.control.y - octopus.y;
+    const endX = tentacle.end.x - octopus.x;
+    const endY = tentacle.end.y - octopus.y;
     ctx.beginPath();
     ctx.moveTo(startX, startY);
     ctx.quadraticCurveTo(midX, midY, endX, endY);
     ctx.stroke();
 
-    ctx.fillStyle = "rgba(255, 169, 188, 0.72)";
+    ctx.strokeStyle = "rgba(255, 126, 156, 0.38)";
+    ctx.lineWidth = Math.max(4, octopus.radius * 0.055);
+    ctx.beginPath();
+    ctx.moveTo(startX - 4, startY + 2);
+    ctx.quadraticCurveTo(midX - 7, midY, endX - 3, endY - 1);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#8f2344";
+    ctx.lineWidth = Math.max(11, octopus.radius * 0.2);
+    ctx.fillStyle = "rgba(255, 186, 201, 0.82)";
     for (let cup = 0; cup < 3; cup += 1) {
       const t = 0.42 + cup * 0.16;
-      const cupX = startX * (1 - t) + endX * t + Math.sin(i + cup) * 5;
+      const cupX = startX * (1 - t) + endX * t + Math.sin(tentacle.index + cup) * 5;
       const cupY = startY * (1 - t) + endY * t;
       ctx.beginPath();
       ctx.arc(cupX, cupY, Math.max(3, octopus.radius * 0.038), 0, Math.PI * 2);
       ctx.fill();
+
+      ctx.fillStyle = "rgba(107, 22, 48, 0.42)";
+      ctx.beginPath();
+      ctx.arc(cupX, cupY, Math.max(1.4, octopus.radius * 0.016), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255, 186, 201, 0.82)";
     }
-  }
+  });
 
   const body = ctx.createRadialGradient(-octopus.radius * 0.25, -octopus.radius * 0.45, 8, 0, 0, octopus.radius * 1.2);
   body.addColorStop(0, "#ff8aa5");
@@ -263,16 +356,27 @@ function drawOctopus() {
   ctx.ellipse(18, 12, octopus.radius * 0.24, octopus.radius * 0.16, 0.4, 0, Math.PI * 2);
   ctx.fill();
 
+  ctx.strokeStyle = "rgba(255, 180, 197, 0.34)";
+  ctx.lineWidth = Math.max(2, octopus.radius * 0.035);
+  ctx.beginPath();
+  ctx.arc(-octopus.radius * 0.14, -octopus.radius * 0.14, octopus.radius * 0.52, Math.PI * 1.1, Math.PI * 1.75);
+  ctx.stroke();
+
+  ctx.fillStyle = "#5f1430";
+  ctx.beginPath();
+  ctx.ellipse(octopus.radius * 0.08, octopus.radius * 0.24, octopus.radius * 0.16, octopus.radius * 0.08, 0.05, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
   ctx.arc(-octopus.radius * 0.26, -octopus.radius * 0.24, octopus.radius * 0.14, 0, Math.PI * 2);
   ctx.arc(octopus.radius * 0.26, -octopus.radius * 0.24, octopus.radius * 0.14, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "#161616";
+  ctx.fillStyle = "#281018";
   ctx.beginPath();
-  ctx.arc(-octopus.radius * 0.24, -octopus.radius * 0.24, octopus.radius * 0.055, 0, Math.PI * 2);
-  ctx.arc(octopus.radius * 0.28, -octopus.radius * 0.24, octopus.radius * 0.055, 0, Math.PI * 2);
+  ctx.ellipse(-octopus.radius * 0.24, -octopus.radius * 0.24, octopus.radius * 0.04, octopus.radius * 0.09, 0, 0, Math.PI * 2);
+  ctx.ellipse(octopus.radius * 0.28, -octopus.radius * 0.24, octopus.radius * 0.04, octopus.radius * 0.09, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -355,7 +459,7 @@ function drawScene() {
     ctx.fillStyle = "#f7fbff";
     ctx.font = "800 30px Inter, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("Move Caesar. Avoid the octopus.", canvas.width / 2, canvas.height / 2 - 12);
+    ctx.fillText("Move Caesar. Avoid the octopus tentacles.", canvas.width / 2, canvas.height / 2 - 12);
     ctx.font = "700 18px Inter, sans-serif";
     ctx.fillText("Use WASD, arrows, drag, or the buttons.", canvas.width / 2, canvas.height / 2 + 22);
   }
@@ -366,7 +470,7 @@ function drawScene() {
     ctx.fillStyle = "#ffffff";
     ctx.font = "900 34px Inter, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("The octopus ate Caesar", canvas.width / 2, canvas.height / 2 - 12);
+    ctx.fillText("The octopus caught Caesar", canvas.width / 2, canvas.height / 2 - 12);
     ctx.font = "700 18px Inter, sans-serif";
     ctx.fillText("Try again before it gets too fast.", canvas.width / 2, canvas.height / 2 + 24);
   }
@@ -375,13 +479,14 @@ function drawScene() {
 function loop(time) {
   if (!running) return;
   if (!lastTime) lastTime = time;
-  const elapsed = time - lastTime;
-  if (elapsed > 1000 / 60) {
-    update();
-    drawScene();
-    lastTime = time;
+  const elapsed = Math.min(50, time - lastTime);
+  const deltaScale = elapsed / (1000 / 60) || 1;
+  update(deltaScale);
+  drawScene();
+  lastTime = time;
+  if (running) {
+    animationId = requestAnimationFrame(loop);
   }
-  requestAnimationFrame(loop);
 }
 
 function canvasPoint(event) {
@@ -443,4 +548,10 @@ window.addEventListener("keyup", (event) => {
   if (event.code === "Space") caesar.boost = false;
 });
 
+window.addEventListener("resize", () => {
+  resizeCanvas();
+  if (!running) drawScene();
+});
+
+resizeCanvas();
 drawScene();
