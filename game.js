@@ -7,7 +7,8 @@ const restartButton = document.querySelector("#restartButton");
 const moveButton = document.querySelector("#moveButton");
 const boostButton = document.querySelector("#boostButton");
 
-const STORAGE_KEY = "satyam-amoeba-best";
+const STORAGE_KEY = "satyam-octopus-best";
+const GROWTH_INTERVAL_FRAMES = 300;
 const keys = new Set();
 const pointer = { active: false, x: 0, y: 0 };
 let best = Number(localStorage.getItem(STORAGE_KEY) || 0);
@@ -27,10 +28,11 @@ const caesar = {
   boostFuel: 100,
 };
 
-const amoeba = {
+const octopus = {
   x: 180,
   y: 270,
-  radius: 46,
+  radius: 42,
+  targetRadius: 42,
   speed: 1.55,
   wobble: 0,
 };
@@ -47,9 +49,11 @@ function resetGame() {
   caesar.y = 270;
   caesar.boost = false;
   caesar.boostFuel = 100;
-  amoeba.x = 180;
-  amoeba.y = 270;
-  amoeba.speed = 1.55;
+  octopus.x = 180;
+  octopus.y = 270;
+  octopus.radius = 42;
+  octopus.targetRadius = 42;
+  octopus.speed = 1.55;
   particles = Array.from({ length: 30 }, () => ({
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
@@ -99,14 +103,17 @@ function updateCaesar() {
   caesar.y = clamp(caesar.y, caesar.radius, canvas.height - caesar.radius);
 }
 
-function updateAmoeba() {
-  const dx = caesar.x - amoeba.x;
-  const dy = caesar.y - amoeba.y;
+function updateOctopus() {
+  const dx = caesar.x - octopus.x;
+  const dy = caesar.y - octopus.y;
   const length = Math.hypot(dx, dy) || 1;
-  amoeba.speed = Math.min(6.4, 1.55 + score / 1450);
-  amoeba.x += (dx / length) * amoeba.speed;
-  amoeba.y += (dy / length) * amoeba.speed;
-  amoeba.wobble += 0.12 + amoeba.speed * 0.012;
+  const growthSteps = Math.floor(score / GROWTH_INTERVAL_FRAMES);
+  octopus.targetRadius = Math.min(86, 42 + growthSteps * 6);
+  octopus.radius += (octopus.targetRadius - octopus.radius) * 0.025;
+  octopus.speed = Math.min(6.4, 1.55 + score / 1450);
+  octopus.x += (dx / length) * octopus.speed;
+  octopus.y += (dy / length) * octopus.speed;
+  octopus.wobble += 0.12 + octopus.speed * 0.012;
 }
 
 function update() {
@@ -114,7 +121,7 @@ function update() {
   score += 1;
   scoreEl.textContent = Math.floor(score / 6);
   updateCaesar();
-  updateAmoeba();
+  updateOctopus();
 
   particles.forEach((particle) => {
     particle.x -= particle.drift;
@@ -125,7 +132,7 @@ function update() {
     }
   });
 
-  if (distance(caesar, amoeba) < caesar.radius + amoeba.radius - 10) {
+  if (distance(caesar, octopus) < caesar.radius + octopus.radius - 8) {
     endGame();
   }
 }
@@ -170,39 +177,54 @@ function drawGrid() {
   });
 }
 
-function drawAmoeba() {
+function drawOctopus() {
   ctx.save();
-  ctx.translate(amoeba.x, amoeba.y);
+  ctx.translate(octopus.x, octopus.y);
 
-  ctx.fillStyle = "rgba(217, 59, 99, 0.22)";
+  ctx.fillStyle = "rgba(217, 59, 99, 0.2)";
   ctx.beginPath();
-  ctx.arc(0, 0, amoeba.radius + 14 + Math.sin(amoeba.wobble) * 4, 0, Math.PI * 2);
+  ctx.arc(0, 6, octopus.radius + 22 + Math.sin(octopus.wobble) * 3, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.strokeStyle = "#b72b54";
+  ctx.lineWidth = Math.max(10, octopus.radius * 0.22);
+  ctx.lineCap = "round";
+  for (let i = 0; i < 8; i += 1) {
+    const angle = -0.2 + (Math.PI * 1.4 * i) / 7;
+    const wave = Math.sin(octopus.wobble + i * 0.75) * 12;
+    const startX = Math.cos(angle) * octopus.radius * 0.48;
+    const startY = 18 + Math.sin(angle) * octopus.radius * 0.28;
+    const midX = Math.cos(angle) * (octopus.radius * 0.75) + wave;
+    const midY = octopus.radius * 0.95;
+    const endX = Math.cos(angle) * (octopus.radius * 1.2) + wave * 0.45;
+    const endY = octopus.radius * 1.42 + Math.sin(octopus.wobble + i) * 8;
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.quadraticCurveTo(midX, midY, endX, endY);
+    ctx.stroke();
+  }
 
   ctx.fillStyle = "#d93b63";
   ctx.beginPath();
-  for (let i = 0; i < 18; i += 1) {
-    const angle = (Math.PI * 2 * i) / 18;
-    const wave = Math.sin(amoeba.wobble + i * 0.9) * 8;
-    const radius = amoeba.radius + wave;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
+  ctx.ellipse(0, -8, octopus.radius * 0.88, octopus.radius, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "#ff9ab1";
+  ctx.fillStyle = "#ef6f91";
   ctx.beginPath();
-  ctx.arc(-10, -8, 16, 0, Math.PI * 2);
-  ctx.arc(16, 10, 11, 0, Math.PI * 2);
+  ctx.ellipse(-12, 5, octopus.radius * 0.34, octopus.radius * 0.2, -0.3, 0, Math.PI * 2);
+  ctx.ellipse(18, 12, octopus.radius * 0.24, octopus.radius * 0.16, 0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(-octopus.radius * 0.26, -octopus.radius * 0.24, octopus.radius * 0.14, 0, Math.PI * 2);
+  ctx.arc(octopus.radius * 0.26, -octopus.radius * 0.24, octopus.radius * 0.14, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = "#161616";
   ctx.beginPath();
-  ctx.arc(-14, -18, 4, 0, Math.PI * 2);
-  ctx.arc(14, -18, 4, 0, Math.PI * 2);
+  ctx.arc(-octopus.radius * 0.24, -octopus.radius * 0.24, octopus.radius * 0.055, 0, Math.PI * 2);
+  ctx.arc(octopus.radius * 0.28, -octopus.radius * 0.24, octopus.radius * 0.055, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -271,13 +293,13 @@ function drawScene() {
   drawGrid();
   drawHud();
   drawCaesar();
-  drawAmoeba();
+  drawOctopus();
 
   if (!running && !gameOver) {
     ctx.fillStyle = "#161616";
     ctx.font = "800 25px Inter, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("Move Caesar. Avoid the amoeba.", canvas.width / 2, canvas.height / 2 - 12);
+    ctx.fillText("Move Caesar. Avoid the octopus.", canvas.width / 2, canvas.height / 2 - 12);
     ctx.font = "700 17px Inter, sans-serif";
     ctx.fillText("Use WASD, arrows, drag, or the buttons.", canvas.width / 2, canvas.height / 2 + 22);
   }
@@ -288,7 +310,7 @@ function drawScene() {
     ctx.fillStyle = "#ffffff";
     ctx.font = "900 34px Inter, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("The amoeba ate Caesar", canvas.width / 2, canvas.height / 2 - 12);
+    ctx.fillText("The octopus ate Caesar", canvas.width / 2, canvas.height / 2 - 12);
     ctx.font = "700 18px Inter, sans-serif";
     ctx.fillText("Try again before it gets too fast.", canvas.width / 2, canvas.height / 2 + 24);
   }
