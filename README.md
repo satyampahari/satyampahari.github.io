@@ -1,3 +1,3 @@
 # satyampahari.github.io
 
-Personal GitHub Pages site for Satyam Pahari with a small octopus chase game.
+Personal GitHub Pages site for satyampahari with a small octopus chase game.
