@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Satyam Pahari's personal GitHub Pages site with an octopus chase game.">
+    <meta name="description" content="Personal website for Satyam Pahari, featuring projects, notes, and an interactive browser game.">
     <title>Satyam Pahari</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,29 +11,94 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main class="shell">
-      <section class="game-panel" aria-labelledby="game-title">
-        <div class="game-head">
-          <div>
-            <p class="eyebrow">satyampahari.github.io</p>
-            <h2 id="game-title">Octopus Hunt</h2>
+    <header class="site-header">
+      <a class="brand" href="#top">Satyam Pahari</a>
+      <nav aria-label="Primary navigation">
+        <a href="#work">Work</a>
+        <a href="#play">Play</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Personal site and experiments</p>
+          <h1 id="hero-title">Satyam Pahari</h1>
+          <p class="hero-text">
+            I build compact web experiences that are fast, expressive, and easy to use.
+            This page collects my projects, experiments, and a small browser game.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#work">View work</a>
+            <a class="button" href="#play">Play the game</a>
           </div>
-          <div class="scores" aria-live="polite">
-            <span>Score <strong id="score">0</strong></span>
-            <span>Best <strong id="best">0</strong></span>
-          </div>
+        </div>
+        <div class="hero-stats" aria-label="Site highlights">
+          <span><strong>01</strong> Interactive game</span>
+          <span><strong>03</strong> Focus areas</span>
+          <span><strong>100%</strong> Static site</span>
+        </div>
+      </section>
+
+      <section id="work" class="section work-section" aria-labelledby="work-title">
+        <div class="section-heading">
+          <p class="eyebrow">What I make</p>
+          <h2 id="work-title">Useful, lightweight web projects.</h2>
+        </div>
+        <div class="work-grid">
+          <article class="work-card">
+            <span class="work-index">01</span>
+            <h3>Browser games</h3>
+            <p>Small, responsive canvas games with simple controls and quick replay loops.</p>
+          </article>
+          <article class="work-card">
+            <span class="work-index">02</span>
+            <h3>Frontend pages</h3>
+            <p>Clean personal pages, project showcases, and UI experiments built with plain web tools.</p>
+          </article>
+          <article class="work-card">
+            <span class="work-index">03</span>
+            <h3>Learning notes</h3>
+            <p>A place to grow into writeups, demos, and practical things learned while building.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="play" class="section game-section" aria-labelledby="game-title">
+        <div class="section-heading">
+          <p class="eyebrow">Featured experiment</p>
+          <h2 id="game-title">Octopus Hunt</h2>
+          <p>Move Caesar, avoid the tentacles, and survive as the octopus gets faster.</p>
         </div>
 
-        <div class="canvas-wrap">
-          <canvas id="game" width="1280" height="720" aria-label="Octopus chasing Caesar game"></canvas>
-          <button id="startButton" class="start-button" type="button">Start</button>
-        </div>
+        <div class="game-panel">
+          <div class="game-head">
+            <div class="scores" aria-live="polite">
+              <span>Score <strong id="score">0</strong></span>
+              <span>Best <strong id="best">0</strong></span>
+            </div>
+          </div>
 
-        <div class="controls">
-          <button id="moveButton" type="button">Move</button>
-          <button id="boostButton" type="button">Boost</button>
-          <button id="restartButton" type="button">Restart</button>
+          <div class="canvas-wrap">
+            <canvas id="game" width="1280" height="720" aria-label="Octopus chasing Caesar game"></canvas>
+            <button id="startButton" class="start-button" type="button">Start</button>
+          </div>
+
+          <div class="controls">
+            <button id="moveButton" type="button">Move</button>
+            <button id="boostButton" type="button">Boost</button>
+            <button id="restartButton" type="button">Restart</button>
+          </div>
         </div>
+      </section>
+
+      <section id="contact" class="section contact-section" aria-labelledby="contact-title">
+        <div>
+          <p class="eyebrow">Contact</p>
+          <h2 id="contact-title">Find me on GitHub.</h2>
+        </div>
+        <a class="button primary" href="https://github.com/satyampahari" rel="noreferrer">github.com/satyampahari</a>
       </section>
     </main>
 

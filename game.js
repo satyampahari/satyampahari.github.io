@@ -44,8 +44,9 @@ bestEl.textContent = best;
 function resizeCanvas() {
   const previousWidth = canvas.width;
   const previousHeight = canvas.height;
-  canvas.width = Math.max(720, Math.floor(window.innerWidth));
-  canvas.height = Math.max(480, Math.floor(window.innerHeight));
+  const bounds = canvas.parentElement.getBoundingClientRect();
+  canvas.width = Math.max(360, Math.floor(bounds.width || window.innerWidth));
+  canvas.height = Math.max(360, Math.floor(bounds.height || window.innerHeight));
 
   if (previousWidth && previousHeight) {
     caesar.x = clamp(caesar.x * (canvas.width / previousWidth), caesar.radius, canvas.width - caesar.radius);
